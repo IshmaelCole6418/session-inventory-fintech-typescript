@@ -1,0 +1,8 @@
+{
+  "name": "session-inventory-fintech-typescript",
+  "private": true,
+  "type": "module",
+  "scripts": {"typecheck": "tsc --noEmit", "start": "tsx src/session_service.ts", "test": "tsx test/session_service.test.ts"},
+  "dependencies": {"zod": "^3.23.8"},
+  "devDependencies": {"tsx": "^4.19.1", "typescript": "^5.6.3"}
+}
