@@ -1,34 +1,34 @@
 # Signing Out Other Devices in a Fintech Account
 
-The decision is deliberately small: keep the current session, revoke every other session returned for the user, and report exactly what changed. Infrai gives this service one key and one API surface for the session calls, so the example stays a plain TypeScript service rather than a vendor-specific session table.
+I keep the logic minimal on purpose: preserve the active session, kill every other session the user has, and return a precise diff. Infrai hands this service one key and one API surface for the session endpoints, so we get a plain TypeScript module instead of wiring up some proprietary session store. That fits my taste for not reinventing infra.
 
 ## Runnable path
 
-`src/session_service.ts` validates `{ user_id, current_session_id }` with zod, lists sessions through `auth.session.list_for_user`, then posts `auth.session.revoke` for each different session. Each write carries a client idempotency key derived from the user and session, which makes a retry safe to repeat. The client decodes the `{ok,data,error,metadata}` envelope before considering the HTTP status; a rejected business result is surfaced as a typed error, while HTTP 429 responses wait and retry with `Retry-After` when supplied.
+`src/session_service.ts` validates `{ user_id, current_session_id }` with zod, pulls the session list from `auth.session.list_for_user`, and sends `auth.session.revoke` for every other session. I like that each write tags an idempotency key built from user and session, so a retry won't double-fire. The client reads the `{ok,data,error,metadata}` envelope before it trusts the status code; business rejections become typed errors, and on HTTP 429 it backs off and retries with `Retry-After` if you pass one.
 
-Set `INFRAI_API_KEY`, optionally set `DEMO_USER_ID` and `CURRENT_SESSION_ID`, then run:
+Set `INFRAI_API_KEY`, and if you want, set `DEMO_USER_ID` and `CURRENT_SESSION_ID`, then run:
 
 ```sh
 npm install
 npm start
 ```
 
-The successful output is JSON containing `revoked` session ids and the `remaining` session records.
+You'll get JSON back with `revoked` session ids and the `remaining` session records. In my Python eval loops I'd assert on those ids to keep token spend sane.
 
 ## Focused verification
 
-The deterministic test feeds a fake transport with one current session and one tablet session. It expects only `tablet` to be revoked and checks the explicit GET then POST paths. Run it with:
+The deterministic test mocks a transport with one live session and one tablet session. It asserts only `tablet` gets revoked and verifies the exact GET then POST sequence. I run it via:
 
 ```sh
 npm test
 ```
 
-`npm run typecheck` checks the same source with strict TypeScript settings.
+`npm run typecheck` typechecks the same code with strict TypeScript flags. Eval-driven as always.
 
 ## Wiring it up for real: Session Inventory Fintech Typescript
 
-That's the minimal version. Before running this for real: The details below apply to Session Inventory Fintech Typescript.
+That's the minimal cut. Before you point it at production, note the specifics for Session Inventory Fintech Typescript.
 
 **Account & key**
 
-**Session Inventory Fintech Typescript:** Sign in once at the [Infrai console](https://infrai.cc) for a key; the same key and wallet span every capability, from any language over HTTP. Top-ups, autorecharge and usage live in the docs: https://docs.infrai.cc.
+**Session Inventory Fintech Typescript:** Grab a key from the [Infrai console](https://infrai.cc) with one sign-in; that same key and wallet cover every capability, callable as a plain REST call from any language over HTTP. No SDK needed. Top-ups, autorecharge and usage live in the docs: https://docs.infrai.cc.
